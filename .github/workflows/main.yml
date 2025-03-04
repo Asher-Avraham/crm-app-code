@@ -1,0 +1,79 @@
+name: CI workflow for CRM app
+
+on:
+    push:
+        branches:
+            - main
+              github-actions-workflow
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Install yarn # only for act, remove for github #! remove
+
+              run: npm install -g yarn
+
+            - name: clear cache
+              run: yarn cache clean # only for act, remove for github #! remove
+
+            - name: Install dependencies
+              run: yarn install
+
+            - name: Build app
+              run: yarn build
+
+            - name: Run app
+              run: yarn start &
+
+            - name: Test app
+              run: curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
+
+            - name: Stop app
+              run: |
+                  pkill node
+                  if [ $? -eq 0 ]; then
+                    echo "Node process stopped successfully."
+                  else
+                    echo "Failed to stop Node process."
+                    exit 1 # Fail the step if pkill failed
+                  fi
+
+            # - name: Build Docker image
+            #   run: docker build -t crm-app:${{ github.sha }} .
+
+            # - name: Start E2E Environment
+            #   run: docker compose up -d
+
+            # # - name: Run E2E tests #TODO create e2e tests
+            # #   run: yarn test:e2e
+
+            # - name: curl test # after E2E
+            #   run: |
+            #       sleep 5 # Wait for E2E env if needed
+            #       curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
+
+            # - name: Stop E2E Environment
+            #   run: docker compose down
+
+            # - name: configure AWS credentials
+            #   uses: aws-actions/configure-aws-credentials@v3
+            #   with:
+            #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            #       aws-region: us-east-1
+
+            # - name: Login to Amazon ECR
+            #   run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+            # - name: Tag Docker image
+            #   run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/crm-app:${{ github.sha }}
+
+            # - name: Push Docker image to ECR
+            #   run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/crm-app:${{ github.sha }}
+
+            - name: All done
+              run: echo "All done!!!!!!!!!!!!!"
