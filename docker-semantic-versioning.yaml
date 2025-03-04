@@ -1,0 +1,80 @@
+name: Docker Semantic Versioning & Run
+
+on:
+  push:
+    branches:
+      - main # Or your main branch name
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.semantic-versioning.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to fetch all history for commit analysis
+
+      - name: Get current version
+        id: get-current-version
+        run: |
+          CURRENT_VERSION=$(cat VERSION || echo "v1.0.0") # Read from VERSION file or default
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      - name: Semantic Versioning
+        id: semantic-versioning
+        uses: haya14busa/action-bumpr@v1.4.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          bump_patch_for_minor_commit: false # Optional: Don't bump patch for minor commits by default
+          bump_minor_for_major_commit: false # Optional: Don't bump minor for major commits by default
+          current_version: ${{ env.CURRENT_VERSION }}
+          default_bump: patch # Default bump if no semantic commits found
+          version_files: |
+            VERSION # List of version files to update (can be multiple, like package.json)
+
+      - name: Update VERSION file
+        if: steps.semantic-versioning.outputs.bumped == 'true'
+        run: |
+          echo "${{ steps.semantic-versioning.outputs.new_version }}" > VERSION
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add VERSION
+          git commit -m "chore: bump version to ${{ steps.semantic-versioning.outputs.new_version }}"
+          git push origin main # Or your main branch name
+
+  build-and-push:
+    needs: versioning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3 # Replace with your registry login method if needed
+        with:
+          registry: ghcr.io # Example: GitHub Container Registry (replace with yours)
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # Or your registry token secret
+
+      - name: Build and Push Docker Image
+        id: docker-build-push
+        uses: docker/build-push-action@v4
+        with:
+          context: . # Path to your Dockerfile context
+          file: ./Dockerfile # Path to your Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.versioning.outputs.new_version }} # Tag with semantic version
+            ghcr.io/${{ github.repository }}:latest # Also tag as 'latest' (optional)
+          build-args: |
+            VERSION=${{ steps.versioning.outputs.new_version }} # Pass version as build argument
+
+      - name: Output New Version
+        run: echo "New Docker Image Version: ${{ steps.versioning.outputs.new_version }}"
