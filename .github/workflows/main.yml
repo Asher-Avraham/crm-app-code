@@ -7,7 +7,7 @@ on:
             - github-actions-workflow
 
 jobs:
-    build:
+    setup-and-build:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -26,6 +26,10 @@ jobs:
             - name: Build app
               run: yarn build
 
+    test:
+        runs-on: ubuntu-latest
+        needs: setup-and-build
+        steps:
             - name: Run app
               run: yarn start &
 
@@ -35,6 +39,10 @@ jobs:
             - name: Stop app
               run: pkill node
 
+    docker-build:
+        runs-on: ubuntu-latest
+        needs: setup-and-build
+        steps:
             - name: Build Docker image
               run: docker build -t crm-app:${{ github.sha }} .
 
@@ -52,6 +60,10 @@ jobs:
             - name: Stop E2E Environment
               run: docker compose down
 
+    docker-push:
+        runs-on: ubuntu-latest
+        needs: docker-build
+        steps:
             - name: configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v3
               with:
