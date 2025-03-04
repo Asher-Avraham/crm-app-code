@@ -4,10 +4,10 @@ services:
             context: .
             dockerfile: Dockerfile
         ports:
-            - '3000' # Remove host port mapping here, nginx will handle external access
+            - '3000:3000'
         environment:
             - NODE_ENV=production
-            - MONGODB_URI=${MONGODB_URI:-mongodb://root:example@mongodb:27017/mydatabase} # Changed localhost to mongodb
+            - MONGODB_URI=${MONGODB_URI:-mongodb://root:example@localhost:27017/mydatabase}
             - LOG_LEVEL=${LOG_LEVEL:-info}
             - PERSISTENCE=${PERSISTENCE:-true}
         depends_on:
@@ -16,7 +16,7 @@ services:
     mongodb:
         image: mongo:latest
         ports:
-            - '27017' #Remove host port mapping here, only needed internally
+            - '27017:27017'
         environment:
             - MONGO_INITDB_ROOT_USERNAME=root
             - MONGO_INITDB_ROOT_PASSWORD=example
@@ -29,15 +29,6 @@ services:
             timeout: 5s
             retries: 5
             start_period: 30s
-
-    nginx:
-        image: nginx:latest
-        ports:
-            - '80:80' # Expose nginx on port 80
-        volumes:
-            - ./nginx.conf:/etc/nginx/nginx.conf:ro
-        depends_on:
-            - app
 
 volumes:
     mongodb_data:
