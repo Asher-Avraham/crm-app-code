@@ -4,7 +4,7 @@ on:
     push:
         branches:
             - main
-              github-actions-workflow
+            - github-actions-workflow
 
 jobs:
     build:
