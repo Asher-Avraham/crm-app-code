@@ -29,7 +29,7 @@ jobs:
               uses: actions/upload-artifact@v4
               with:
                   name: build-artifacts
-                  path: . # Upload everything
+                  path: .next # Upload the .next directory
 
     test:
         runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                   name: build-artifacts
-                  path: .
+                  path: .next # Download the .next directory
 
             - name: Checkout code
               uses: actions/checkout@v3
@@ -74,7 +74,7 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                   name: build-artifacts
-                  path: .
+                  path: .next # Download the .next directory
 
             - name: Checkout code
               uses: actions/checkout@v3
