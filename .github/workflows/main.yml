@@ -176,14 +176,20 @@ jobs:
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                   aws-region: ${{ secrets.AWS_REGION }}
 
+            - name: read version
+              id: version
+              uses: juliangruber/read-file-action@v1
+              with:
+                  path: ./version.txt
+
             - name: Login to Amazon ECR
               run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
 
             - name: Tag Docker image
-              run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ needs.setup-and-build.outputs.new_version }}
+              run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ steps.version.outputs.content }}
 
             - name: Push Docker image to ECR
-              run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ needs.setup-and-build.outputs.new_version }}
+              run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ steps.version.outputs.content }}
 
             - name: All done
               run: echo "All done!!!!!!!!!!!!!"
