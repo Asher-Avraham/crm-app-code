@@ -72,27 +72,12 @@ jobs:
                   path: .next
             - name: Install dependencies
               run: yarn install
-<<<<<<< HEAD
-
-            - name: Run app
-              run: yarn start &
-
-            - name: Wait for app to start
-              run: sleep 10
-
-            - name: Test app
-              run: curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
-
-            - name: Stop app
-              run: pkill node
-=======
             - name: Run and test app
               run: |
                   yarn start &
                   sleep 10
                   curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
                   pkill node || (echo "Failed to stop Node process." && exit 1)
->>>>>>> acc5c92 (trying consolodating)
 
     docker-build:
         needs: setup-and-build
