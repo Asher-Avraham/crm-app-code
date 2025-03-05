@@ -64,7 +64,7 @@ jobs:
                   git push origin v${{ steps.set_version.outputs.new_version }}
 
             - name: check the version.txt file
-              run: cat version.txt
+              run: cat version.txt # for debugging purposes
 
     setup-and-build:
         needs: generate-version
