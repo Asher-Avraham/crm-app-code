@@ -26,14 +26,13 @@ jobs:
               run: yarn build
 
             - name: List contents of project directory
-              run: ls -al
+              run: ls -al .next
 
             - name: Upload build artifact
               uses: actions/upload-artifact@v4
               with:
                   name: build-artifacts
-                  path: .next # Upload the .next directory
-
+                  run: ${{ github.workspace }}/.next
     test:
         runs-on: ubuntu-latest
         needs: setup-and-build
