@@ -70,12 +70,6 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v3
 
-            # - name: Install yarn # only for act, remove for github #! remove
-            #   run: npm install -g yarn
-
-            # - name: clear cache
-            #   run: yarn cache clean # only for act, remove for github #! remove
-
             - name: Install dependencies
               run: yarn install
 
@@ -104,9 +98,6 @@ jobs:
               with:
                   name: build-artifacts
                   path: .next
-
-            # - name: Install yarn # only for act, remove for github #! remove
-            #   run: npm install -g yarn
 
             - name: Install dependencies
               run: yarn install
@@ -149,9 +140,6 @@ jobs:
               with:
                   path: ./version.txt
 
-            # - name: Debug version # debbuging
-            #   run: echo "Version is ${{ steps.version.outputs.content  }}"
-
             - name: Build Docker image
               run: docker build -t crm-app:$(echo "${{ steps.version.outputs.content }}" | tr -d '\n') .
 
@@ -168,9 +156,6 @@ jobs:
 
             - name: Stop E2E Environment
               run: docker compose down
-
-            # - name: List Docker images # debugging
-            #   run: docker images
 
             - name: Save Docker image
               run: docker save crm-app:$(cat version.txt) > image.tar
@@ -208,15 +193,6 @@ jobs:
               uses: juliangruber/read-file-action@v1
               with:
                   path: ./version.txt
-
-            # - name: Debug version # debbuging
-            #   run: echo "Version is ${{ steps.version.outputs.content  }}"
-
-            # - name: List Docker images # debugging
-            #   run: docker images
-
-            # - name: Check if image exists
-            #   run: docker image inspect crm-app:${{ steps.version.outputs.content }}
 
             - name: Login to Amazon ECR
               run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
