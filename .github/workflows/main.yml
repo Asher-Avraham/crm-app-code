@@ -185,6 +185,9 @@ jobs:
               with:
                   path: ./version.txt
 
+            - name: Debug version # debbuging
+              run: echo "Version is ${{ steps.version.outputs.content  }}"
+
             - name: Login to Amazon ECR
               run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
 
