@@ -47,15 +47,19 @@ jobs:
 
             - name: Checkout code
               uses: actions/checkout@v3
+              with:
+                  path: source
 
             - name: Install yarn # only for act, remove for github #! remove
               run: npm install -g yarn
 
             - name: Install dependencies
               run: yarn install
+              working-directory: source
 
             - name: Run app
               run: yarn start &
+              working-directory: source
 
             - name: Test app
               run: curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
