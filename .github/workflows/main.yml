@@ -51,8 +51,12 @@ jobs:
                   git config user.email github-actions@github.com
                   git add version.txt
                   git commit -m "Bump version to ${{ steps.set_version.outputs.new_version }}"
-                  git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-                  git push
+
+                  # Authenticate using GITHUB_TOKEN
+                  git remote set-url origin "https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+                  git push origin
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
             - name: echo tag
               run: echo "v${{ steps.set_version.outputs.new_version }}" #! remove
