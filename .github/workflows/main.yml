@@ -122,11 +122,10 @@ jobs:
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                   aws-region: ${{ secrets.AWS_REGION }}
             - name: Download and load Docker image
-              run: |
-                  actions/download-artifact@v4
-                  with:
-                    name: docker-image
-                  docker load < image.tar
+              uses: actions/download-artifact@v4
+              with:
+                  name: docker-image
+            - run: docker load < image.tar
             - name: Read version
               id: version
               uses: juliangruber/read-file-action@v1
