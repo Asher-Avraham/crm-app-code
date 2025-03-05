@@ -58,13 +58,13 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: echo tag
-              run: echo "v${{ steps.set_version.outputs.new_version }}" #! remove
-
             - name: Create and push tag
               run: |
                   git tag -a v${{ steps.set_version.outputs.new_version }} -m "Version ${{ steps.set_version.outputs.new_version }}"
                   git push origin v${{ steps.set_version.outputs.new_version }}
+
+            - name: check the version.txt file
+              run: cat version.txt
 
     setup-and-build:
         needs: generate-version
