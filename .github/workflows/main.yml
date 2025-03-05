@@ -87,7 +87,7 @@ jobs:
                   path: .next # Download the .next directory
 
             - name: Build Docker image
-              run: docker build -t crm-app:${ GITHUB_SHA } .
+              run: docker build -t crm-app:${{ github.sha }} .
 
             - name: Start E2E Environment
               run: docker compose up -d
@@ -118,9 +118,10 @@ jobs:
               run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
 
             - name: Tag Docker image
-              run: docker tag crm-app:${ GITHUB_SHA } ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${ GITHUB_SHA }
+              run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
 
             - name: Push Docker image to ECR
-              run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${ GITHUB_SHA }
+              run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
+
             - name: All done
               run: echo "All done!!!!!!!!!!!!!"
