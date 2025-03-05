@@ -63,9 +63,6 @@ jobs:
                   git tag -a v${{ steps.set_version.outputs.new_version }} -m "Version ${{ steps.set_version.outputs.new_version }}"
                   git push origin v${{ steps.set_version.outputs.new_version }}
 
-            - name: check the version.txt file
-              run: cat version.txt # for debugging purposes
-
     setup-and-build:
         needs: generate-version
         runs-on: ubuntu-latest
@@ -138,6 +135,9 @@ jobs:
               with:
                   name: build-artifacts
                   path: .next # Download the .next directory
+
+            - name: Debug version # debbuging
+              run: echo "Version is ${{ needs.setup-and-build.outputs.new_version }}"
 
             - name: Build Docker image
               run: docker build -t crm-app:${{ needs.setup-and-build.outputs.new_version }} .
