@@ -225,7 +225,7 @@ jobs:
               run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
 
             - name: Tag Docker image
-              run: docker tag crm-app:${{ steps.version.outputs.content }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ steps.version.outputs.content }}
+              run: docker tag "crm-app:${{ steps.version.outputs.content }}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ steps.version.outputs.content }}"
 
             - name: Push Docker image to ECR
               run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ steps.version.outputs.content }}
