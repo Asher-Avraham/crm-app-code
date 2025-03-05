@@ -39,27 +39,32 @@ jobs:
         runs-on: ubuntu-latest
         needs: setup-and-build
         steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
             - name: Download build artifact
               uses: actions/download-artifact@v4
               with:
                   name: build-artifacts
-                  path: .next # Download the .next directory
+                  path: .next
 
-            - name: Checkout code
-              uses: actions/checkout@v3
-              with:
-                  path: source
+            - name: List contents of current directory
+              run: ls -la
+
+            - name: List contents of .next directory
+              run: ls -la .next
 
             - name: Install yarn # only for act, remove for github #! remove
               run: npm install -g yarn
 
             - name: Install dependencies
               run: yarn install
-              working-directory: source
 
             - name: Run app
               run: yarn start &
-              working-directory: source
+
+            - name: Wait for app to start
+              run: sleep 10
 
             - name: Test app
               run: curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
@@ -67,55 +72,56 @@ jobs:
             - name: Stop app
               run: pkill node
 
-            # docker-build:
-            #     runs-on: ubuntu-latest
-            #     needs: setup-and-build
-            #     steps:
-            #         - name: Download build artifact
-            #           uses: actions/download-artifact@v4
-            #           with:
-            #               name: build-artifacts
-            #               path: .next # Download the .next directory
 
-            #         - name: Checkout code
-            #           uses: actions/checkout@v3
+                  # docker-build:
+                  #     runs-on: ubuntu-latest
+                  #     needs: setup-and-build
+                  #     steps:
+                  #         - name: Download build artifact
+                  #           uses: actions/download-artifact@v4
+                  #           with:
+                  #               name: build-artifacts
+                  #               path: .next # Download the .next directory
 
-            #         - name: Build Docker image
-            #           run: docker build -t crm-app:${{ github.sha }} .
+                  #         - name: Checkout code
+                  #           uses: actions/checkout@v3
 
-            #         - name: Start E2E Environment
-            #           run: docker compose up -d
+                  #         - name: Build Docker image
+                  #           run: docker build -t crm-app:${{ github.sha }} .
 
-            #         # # - name: Run E2E tests #TODO create e2e tests
-            #         # #   run: yarn test:e2e
+                  #         - name: Start E2E Environment
+                  #           run: docker compose up -d
 
-            #         - name: curl test
-            #           run: |
-            #               sleep 5 # Wait for E2E env if needed
-            #               curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
+                  #         # # - name: Run E2E tests #TODO create e2e tests
+                  #         # #   run: yarn test:e2e
 
-            #         - name: Stop E2E Environment
-            #           run: docker compose down
+                  #         - name: curl test
+                  #           run: |
+                  #               sleep 5 # Wait for E2E env if needed
+                  #               curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
 
-            # docker-push:
-            #     runs-on: ubuntu-latest
-            #     needs: docker-build
-            #     steps:
-            #         - name: configure AWS credentials
-            #           uses: aws-actions/configure-aws-credentials@v3
-            #           with:
-            #               aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            #               aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            #               aws-region: ${{ secrets.AWS_REGION }}
+                  #         - name: Stop E2E Environment
+                  #           run: docker compose down
 
-            #         - name: Login to Amazon ECR
-            #           run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
+                  # docker-push:
+                  #     runs-on: ubuntu-latest
+                  #     needs: docker-build
+                  #     steps:
+                  #         - name: configure AWS credentials
+                  #           uses: aws-actions/configure-aws-credentials@v3
+                  #           with:
+                  #               aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  #               aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  #               aws-region: ${{ secrets.AWS_REGION }}
 
-            #         - name: Tag Docker image
-            #           run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
+                  #         - name: Login to Amazon ECR
+                  #           run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
 
-            #         - name: Push Docker image to ECR
-            #           run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
+                  #         - name: Tag Docker image
+                  #           run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
 
-            - name: All done
-              run: echo "All done!!!!!!!!!!!!!"
+                  #         - name: Push Docker image to ECR
+                  #           run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
+
+                  - name: All done
+                    run: echo "All done!!!!!!!!!!!!!"
