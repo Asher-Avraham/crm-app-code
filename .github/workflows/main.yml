@@ -7,7 +7,62 @@ on:
             - github-actions-workflow
 
 jobs:
+    generate-version:
+        runs-on: ubuntu-latest
+        outputs:
+            new_version: ${{ steps.set_version.outputs.new_version }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Check for version file and increment version
+              id: set_version
+              run: |
+                  VERSION_FILE="version.txt"
+                  if [ ! -f "$VERSION_FILE" ]; then
+                    echo "1.0.0" > "$VERSION_FILE"
+                    echo "Created new version file with version 1.0.0"
+                  fi
+
+                  current_version=$(cat "$VERSION_FILE")
+                  echo "Current version: $current_version"
+
+                  # Split the version into parts
+                  IFS='.' read -ra VERSION_PARTS <<< "$current_version"
+                  MAJOR=${VERSION_PARTS[0]}
+                  MINOR=${VERSION_PARTS[1]}
+                  PATCH=${VERSION_PARTS[2]}
+
+                  # Increment patch version
+                  PATCH=$((PATCH + 1))
+
+                  new_version="${MAJOR}.${MINOR}.${PATCH}"
+                  echo "New version: $new_version"
+
+                  # Save new version to file
+                  echo "$new_version" > "$VERSION_FILE"
+
+                  # Set output for use in other jobs
+                  echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+            - name: Commit and push new version
+              run: |
+                  git config user.name github-actions
+                  git config user.email github-actions@github.com
+                  git add version.txt
+                  git commit -m "Bump version to ${{ steps.set_version.outputs.new_version }}"
+                  git push
+
+            - name: echo tag
+              run: echo "v${{ steps.set_version.outputs.new_version }}" #! remove
+
+            - name: Create and push tag
+              run: |
+                  git tag -a v${{ steps.set_version.outputs.new_version }} -m "Version ${{ steps.set_version.outputs.new_version }}"
+                  git push origin v${{ steps.set_version.outputs.new_version }}
+
     setup-and-build:
+        needs: generate-version
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -80,7 +135,7 @@ jobs:
                   path: .next # Download the .next directory
 
             - name: Build Docker image
-              run: docker build -t crm-app:${{ github.sha }} .
+              run: docker build -t crm-app:${{ needs.setup-and-build.outputs.new_version }} .
 
             - name: Start E2E Environment
               run: docker compose up -d
@@ -111,10 +166,10 @@ jobs:
               run: aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
 
             - name: Tag Docker image
-              run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
+              run: docker tag crm-app:${{ github.sha }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ needs.setup-and-build.outputs.new_version }}
 
             - name: Push Docker image to ECR
-              run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ github.sha }}
+              run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${{ needs.setup-and-build.outputs.new_version }}
 
             - name: All done
               run: echo "All done!!!!!!!!!!!!!"
