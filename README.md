@@ -4,7 +4,7 @@
 -   **Node.js:** JavaScript runtime environment.
 -   **React:** JavaScript library for building user interfaces.
 -   **MongoDB:** NoSQL database for data storage.
--   **RabbitMQ:** Message broker for asynchronous communication.
+-   <del>**RabbitMQ:** Message broker for asynchronous communication.</del>
 -   **Docker:** Containerization platform.
 -   **Nginx:** Web server and reverse proxy.
 -   **Tailwind CSS:** Utility-first CSS framework.
@@ -61,7 +61,7 @@
 ### Configuration
 
 -   **MongoDB Connection:** The MongoDB connection string is handled in `lib/mong-connect.js`. Ensure it's configured correctly for your environment.
--   **RabbitMQ Connection:** The RabbitMQ connection settings are in `lib/rabbitmq.js`. Adjust them as needed.
+-   <del>**RabbitMQ Connection:** The RabbitMQ connection settings are in `lib/rabbitmq.js`. Adjust them as needed.</del>
 -   **Nginx Configuration:** The `nginx.conf` file configures the reverse proxy. Modify it to suit your deployment needs.
 -   **Environment Variables:** If you have environment variables, make sure to set them either in your `.env.local` file for development or in your Docker Compose file for production.
 
