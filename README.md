@@ -1,17 +1,75 @@
-## Using Docker
+## Technologies Used
 
-1. [Install Docker](https://docs.docker.com/get-docker/) on your machine.
-1. Build your container: `docker build -t nextjs-docker .`.
-1. Run your container: `docker run -p 3000:3000 nextjs-docker`.
+-   **Next.js:** React framework for building server-rendered applications.
+-   **Node.js:** JavaScript runtime environment.
+-   **React:** JavaScript library for building user interfaces.
+-   **MongoDB:** NoSQL database for data storage.
+-   **RabbitMQ:** Message broker for asynchronous communication.
+-   **Docker:** Containerization platform.
+-   **Nginx:** Web server and reverse proxy.
+-   **Tailwind CSS:** Utility-first CSS framework.
 
-You can view your images created with `docker images`.
+## Setup Instructions
 
-## Running Locally
+### Prerequisites
 
-First, run the development server:
+-   Docker and Docker Compose installed.
+-   Node.js and Yarn installed (if developing locally).
 
-```bash
-npm run dev
-# or
-yarn dev
-```
+### Development Setup (Local)
+
+1.  **Install Dependencies:**
+
+    ```bash
+    yarn install
+    ```
+
+2.  **Start MongoDB and RabbitMQ (using Docker Compose):**
+
+    ```bash
+    docker-compose up -d mongo rabbitmq
+    ```
+
+3.  **Run the Application:**
+
+    ```bash
+    yarn dev
+    ```
+
+4.  **Access the application:**
+
+    Open your browser and navigate to `http://localhost:3000`.
+
+### Docker Deployment
+
+1.  **Build the Docker Image:**
+
+    ```bash
+    docker build -t your-app-name .
+    ```
+
+2.  **Run the Docker Container (with Docker Compose):**
+
+    ```bash
+    docker-compose up --build -d
+    ```
+
+3.  **Access the Application:**
+
+    Open your browser and navigate to the appropriate port (e.g., `http://localhost:80`). The port used is configured in the `docker-compose.yaml` and `nginx.conf` files.
+
+### Configuration
+
+-   **MongoDB Connection:** The MongoDB connection string is handled in `lib/mong-connect.js`. Ensure it's configured correctly for your environment.
+-   **RabbitMQ Connection:** The RabbitMQ connection settings are in `lib/rabbitmq.js`. Adjust them as needed.
+-   **Nginx Configuration:** The `nginx.conf` file configures the reverse proxy. Modify it to suit your deployment needs.
+-   **Environment Variables:** If you have environment variables, make sure to set them either in your `.env.local` file for development or in your Docker Compose file for production.
+
+### API Endpoints
+
+-   `/api/clients`: Retrieves a list of clients.
+-   `/api/news`: Retrieves the latest news.
+
+### Notes
+
+-   Version number is stored in version.txt
