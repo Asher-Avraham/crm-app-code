@@ -1,3 +1,11 @@
+# Demo CRM App
+Simple crm app that allows you to save information about clients to a mongodb database, and retrieve the data.
+
+## Architecture
+This app has two other repos related to it - 
+1. Infra repo - https://github.com/Asher-Avraham/CRM-Infrastructure-final-project
+2. Helm charts and other k8s cluster resources - https://github.com/Asher-Avraham/CRM-cluster-resources-final-project
+
 ## Technologies Used
 
 -   **Next.js:** React framework for building server-rendered applications.
