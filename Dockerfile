@@ -1,35 +1,40 @@
-# Use an official Node.js runtime as the base image
+# Build stage
 FROM node:20-alpine AS builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy package.json and yarn.lock (or package-lock.json) to the working directory
+# Copy files needed for installation
 COPY package.json yarn.lock ./
 
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
-# Copy the rest of the application code to the working directory
-COPY . .
+# Copy necessary source files
+COPY next.config.js ./
+COPY public ./public
+COPY src ./src
 
-# Build the Next.js application
+# Build the application
 RUN yarn build
 
-# Use a smaller base image for the final stage
+# Production stage
 FROM node:20-alpine
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy only the necessary files from the builder stage
-COPY --from=builder /app ./
+# Copy production dependencies
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production
 
-# Set the environment variable to production
+# Copy built application from builder stage
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+# Set production environment
 ENV NODE_ENV=production
 
-# Expose port 3000 to the outside world
+# Expose port 3000
 EXPOSE 3000
 
-# Define the command to run your application
+# Run in production mode
 CMD ["yarn", "start"]

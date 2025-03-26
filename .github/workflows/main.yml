@@ -73,7 +73,19 @@ jobs:
             - name: Run and test app
               run: |
                   yarn start &
-                  sleep 10
+                  max_attempts=30
+                  attempt=1
+                  until curl -s http://localhost:3000/health || [ $attempt -eq $max_attempts ]
+                  do
+                    echo "Attempt $attempt: Waiting for application to be ready..."
+                    sleep 2
+                    attempt=$((attempt + 1))
+                  done
+                  if [ $attempt -eq $max_attempts ]; then
+                    echo "Application failed to start within timeout"
+                    exit 1
+                  fi
+                  # Run the actual tests
                   curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
                   pkill node || (echo "Failed to stop Node process." && exit 1)
 
@@ -136,5 +148,54 @@ jobs:
                   VERSION="${VERSION//$'\n'}"
                   docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${VERSION}"
                   docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${VERSION}
-            - name: All done
-              run: echo "All done!"
+            - name: Deploy to ECS
+              run: |
+                  aws ecs update-service --cluster crm-app-cluster --service crm-app-service --force-new-deployment
+
+    deploy-k8s:
+        needs: docker-build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Download build artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: docker-image
+            - run: docker load < image.tar
+            - name: Read version
+              id: version
+              uses: juliangruber/read-file-action@v1
+              with:
+                  path: ./version.txt
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v3
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.AWS_REGION }}
+            - name: Update kubeconfig
+              run: |
+                  aws eks update-kubeconfig --name crm-app-cluster --region ${{ secrets.AWS_REGION }}
+            - name: Set up kubectl
+              uses: azure/setup-kubectl@v3
+              with:
+                  version: 'v1.28.0' # Or your desired kubectl version
+            - name: Deploy to Kubernetes
+              run: |
+                  VERSION="${{ steps.version.outputs.content }}"
+                  VERSION="${VERSION//$'\n'}"
+                  docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/crm-app:${VERSION}"
+                  kubectl set image deployment/crm-app-deployment crm-app="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/crm-app:${VERSION}"
+                  kubectl rollout status deployment/crm-app-deployment
+
+    cleanup:
+        needs: [docker-push, deploy-k8s]
+        if: always() # runs even if other jobs fail
+        runs-on: ubuntu-latest
+        steps:
+            - name: Delete workflow artifacts
+              uses: geekyeggo/delete-artifact@v5
+              with:
+                  name: |
+                      build-artifacts
+                      docker-image

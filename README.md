@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Demo CRM App
 Simple crm app that allows you to save information about clients to a mongodb database, and retrieve the data.
 
@@ -5,6 +6,11 @@ Simple crm app that allows you to save information about clients to a mongodb da
 This app has two other repos related to it - 
 1. Infra repo - https://github.com/Asher-Avraham/CRM-Infrastructure-final-project
 2. Helm charts and other k8s cluster resources - https://github.com/Asher-Avraham/CRM-cluster-resources-final-project
+=======
+## CRM Application - overview
+
+This repository contains the source code for a Customer Relationship Management (CRM) application. The app allows to add and view clients. It includes a Docker Compose setup for local development and a Dockerfile for a production image. The application also features a GitHub Actions workflow for continuous integration with automated versioning and deployment.
+>>>>>>> 90beee5 (implementing improvments suggested by idan)
 
 ## Technologies Used
 
@@ -16,6 +22,14 @@ This app has two other repos related to it -
 -   **Docker:** Containerization platform.
 -   **Nginx:** Web server and reverse proxy.
 -   **Tailwind CSS:** Utility-first CSS framework.
+
+## Docker Compose Diagram
+
+![Docker Compose Diagram](docker-compose-diagram.png)
+
+## Workflow Architecture Diagram
+
+![Workflow Architecture Diagram](workflow-architecture-diagram.png)
 
 ## Setup Instructions
 
