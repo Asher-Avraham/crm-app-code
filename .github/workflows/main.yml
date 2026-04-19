@@ -106,7 +106,8 @@ jobs:
                   path: ./version.txt
             - name: Build and test Docker image
               run: |
-                  docker build -t crm-app:$(echo "${{ steps.version.outputs.content }}" | tr -d '\n') .
+                  VERSION=$(echo "${{ steps.version.outputs.content }}" | tr -d '\n')
+                  docker build -t crm-app:${VERSION} -t crm-app:${GITHUB_SHA} .
                   docker compose up -d
                   sleep 5
                   curl http://localhost:80 --fail --connect-timeout 10 --max-time 30
@@ -146,50 +147,38 @@ jobs:
                   aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
                   VERSION="${{ steps.version.outputs.content }}"
                   VERSION="${VERSION//$'\n'}"
+                  # Tag and push versioned image
                   docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${VERSION}"
                   docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${VERSION}
-            - name: Deploy to ECS
-              run: |
-                  aws ecs update-service --cluster crm-app-cluster --service crm-app-service --force-new-deployment
+                  # Tag and push SHA image
+                  docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}"
+                  docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}
 
-    deploy-k8s:
-        needs: docker-build
+    update-helm-repo:
+        needs: docker-push
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
-            - name: Download build artifact
-              uses: actions/download-artifact@v4
+            - name: Checkout helm repo
+              uses: actions/checkout@v4
               with:
-                  name: docker-image
-            - run: docker load < image.tar
-            - name: Read version
-              id: version
-              uses: juliangruber/read-file-action@v1
-              with:
-                  path: ./version.txt
-            - name: Configure AWS credentials
-              uses: aws-actions/configure-aws-credentials@v3
-              with:
-                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  aws-region: ${{ secrets.AWS_REGION }}
-            - name: Update kubeconfig
+                  repository: Asher-Avraham/crm-app-helm
+                  token: ${{ secrets.HELM_REPO_TOKEN }}
+                  path: helm-repo
+            - name: Update image tag
               run: |
-                  aws eks update-kubeconfig --name crm-app-cluster --region ${{ secrets.AWS_REGION }}
-            - name: Set up kubectl
-              uses: azure/setup-kubectl@v3
-              with:
-                  version: 'v1.28.0' # Or your desired kubectl version
-            - name: Deploy to Kubernetes
+                  cd helm-repo
+                  sed -i "s/^  tag: .*/  tag: ${GITHUB_SHA}/" envs/dev-values.yaml
+            - name: Commit and push
               run: |
-                  VERSION="${{ steps.version.outputs.content }}"
-                  VERSION="${VERSION//$'\n'}"
-                  docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/crm-app:${VERSION}"
-                  kubectl set image deployment/crm-app-deployment crm-app="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/crm-app:${VERSION}"
-                  kubectl rollout status deployment/crm-app-deployment
+                  cd helm-repo
+                  git config user.name "github-actions"
+                  git config user.email "github-actions@users.noreply.github.com"
+                  git add envs/dev-values.yaml
+                  git commit -m "Update dev image tag to ${GITHUB_SHA}" || exit 0
+                  git push
 
     cleanup:
-        needs: [docker-push, deploy-k8s]
+        needs: [docker-push, update-helm-repo]
         if: always() # runs even if other jobs fail
         runs-on: ubuntu-latest
         steps:
