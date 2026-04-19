@@ -1,34 +1,19 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Production stage
+FROM node:20-alpine
 
 WORKDIR /app
 
 # Copy files needed for installation
 COPY package.json yarn.lock ./
 
-# Install dependencies
-RUN yarn install --frozen-lockfile
-
-# Copy necessary source files
-COPY next.config.js ./
-COPY public ./public
-COPY src ./src
-
-# Build the application
-RUN yarn build
-
-# Production stage
-FROM node:20-alpine
-
-WORKDIR /app
-
-# Copy production dependencies
-COPY package.json yarn.lock ./
+# Install production dependencies
 RUN yarn install --frozen-lockfile --production
 
-# Copy built application from builder stage
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+# Copy built application and assets from the context
+# These are generated in the CI pipeline (setup-and-build job)
+COPY .next ./.next
+COPY public ./public
+COPY next.config.js ./
 
 # Set production environment
 ENV NODE_ENV=production
