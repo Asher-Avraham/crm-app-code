@@ -116,9 +116,9 @@ jobs:
             - name: Checkout helm repo
               uses: actions/checkout@v4
               with:
-                  repository: Asher-Avraham/crm-app-helm
-                  token: ${{ secrets.HELM_REPO_TOKEN }}
-                  path: helm-repo
+                  repository: 'Asher-Avraham/crm-app-helm'
+                  token: '${{ secrets.HELM_REPO_TOKEN }}'
+                  path: 'helm-repo'
             - name: Update image tag
               run: |
                   cd helm-repo
