@@ -5,59 +5,10 @@ on:
         branches:
             - main
 jobs:
-    generate-version:
-        runs-on: ubuntu-latest
-        outputs:
-            new_version: ${{ steps.set_version.outputs.new_version }}
-        steps:
-            - uses: actions/checkout@v3
-            - name: Check for version file and increment version
-              id: set_version
-              run: |
-                  VERSION_FILE="version.txt"
-                  if [ ! -f "$VERSION_FILE" ]; then
-                    echo "1.0.0" > "$VERSION_FILE"
-                    echo "Created new version file with version 1.0.0"
-                  fi
-                  current_version=$(cat "$VERSION_FILE")
-                  echo "Current version: $current_version"
-                  IFS='.' read -ra VERSION_PARTS <<< "$current_version"
-                  MAJOR=${VERSION_PARTS[0]}
-                  MINOR=${VERSION_PARTS[1]}
-                  PATCH=$((${VERSION_PARTS[2]} + 1))
-                  new_version="${MAJOR}.${MINOR}.${PATCH}"
-                  echo "New version: $new_version"
-                  echo "$new_version" > "$VERSION_FILE"
-                  echo "new_version=$new_version" >> $GITHUB_OUTPUT
-            - name: Commit and push new version
-              run: |
-                  git config user.name github-actions
-                  git config user.email github-actions@github.com
-                  git add version.txt
-                  git commit -m "Bump version to ${{ steps.set_version.outputs.new_version }}"
-                  git remote set-url origin "https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
-                  git push origin
-            - name: Create and push tag
-              run: |
-                  git tag -a v${{ steps.set_version.outputs.new_version }} -m "Version ${{ steps.set_version.outputs.new_version }}"
-                  git push origin v${{ steps.set_version.outputs.new_version }}
-            - name: Upload version file
-              uses: actions/upload-artifact@v4
-              with:
-                  name: version-file
-                  path: version.txt
-
     setup-and-build:
-        needs: generate-version
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
-              with:
-                  ref: main
-            - name: Download version file
-              uses: actions/download-artifact@v4
-              with:
-                  name: version-file
             - name: Install dependencies
               run: yarn install --frozen-lockfile
             - name: Build app
@@ -79,12 +30,6 @@ jobs:
                     - 27017:27017
         steps:
             - uses: actions/checkout@v3
-              with:
-                  ref: main
-            - name: Download version file
-              uses: actions/download-artifact@v4
-              with:
-                  name: version-file
             - name: Download build artifact
               uses: actions/download-artifact@v4
               with:
@@ -115,30 +60,18 @@ jobs:
                   pkill node || (echo "Failed to stop Node process." && exit 1)
 
     docker-build:
-        needs: [setup-and-build, generate-version]
+        needs: setup-and-build
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
-              with:
-                  ref: main
-            - name: Download version file
-              uses: actions/download-artifact@v4
-              with:
-                  name: version-file
             - name: Download build artifact
               uses: actions/download-artifact@v4
               with:
                   name: build-artifacts
                   path: .next
-            - name: Read version file
-              id: version
-              uses: juliangruber/read-file-action@v1
-              with:
-                  path: ./version.txt
             - name: Build and test Docker image
               run: |
-                  VERSION=$(echo "${{ steps.version.outputs.content }}" | tr -d '\n')
-                  docker build -t crm-app:${VERSION} -t crm-app:${GITHUB_SHA} .
+                  docker build -t crm-app:${GITHUB_SHA} .
                   docker compose up -d
                   # Give it more time for health checks to pass
                   sleep 20
@@ -146,7 +79,7 @@ jobs:
                   docker compose down
             - name: Save and upload Docker image
               run: |
-                  docker save crm-app:$(cat version.txt) > image.tar
+                  docker save crm-app:${GITHUB_SHA} > image.tar
             - name: Upload Docker image
               uses: actions/upload-artifact@v4
               with:
@@ -154,16 +87,10 @@ jobs:
                   path: image.tar
 
     docker-push:
-        needs: [docker-build, generate-version]
+        needs: docker-build
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
-              with:
-                  ref: main
-            - name: Download version file
-              uses: actions/download-artifact@v4
-              with:
-                  name: version-file
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v3
               with:
@@ -175,21 +102,11 @@ jobs:
               with:
                   name: docker-image
             - run: docker load < image.tar
-            - name: Read version
-              id: version
-              uses: juliangruber/read-file-action@v1
-              with:
-                  path: ./version.txt
             - name: Push to ECR
               run: |
                   aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
-                  VERSION="${{ steps.version.outputs.content }}"
-                  VERSION="${VERSION//$'\n'}"
-                  # Tag and push versioned image
-                  docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${VERSION}"
-                  docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${VERSION}
                   # Tag and push SHA image
-                  docker tag "crm-app:${VERSION}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}"
+                  docker tag "crm-app:${GITHUB_SHA}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}"
                   docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}
 
     update-helm-repo:
@@ -226,4 +143,3 @@ jobs:
                   name: |
                       build-artifacts
                       docker-image
-                      version-file
