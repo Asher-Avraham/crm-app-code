@@ -1,145 +1,145 @@
 name: CI workflow for CRM app
 
 on:
-    push:
-        branches:
-            - main
+  push:
+    branches:
+      - main
 jobs:
-    setup-and-build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - name: Install dependencies
-              run: yarn install --frozen-lockfile
-            - name: Build app
-              run: yarn build
-            - name: Upload build artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: build-artifacts
-                  path: ./.next
-                  include-hidden-files: true
+  setup-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build app
+        run: yarn build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./.next
+          include-hidden-files: true
 
-    test:
-        needs: setup-and-build
-        runs-on: ubuntu-latest
-        services:
-            mongodb:
-                image: mongo:5.0
-                ports:
-                    - 27017:27017
-        steps:
-            - uses: actions/checkout@v3
-            - name: Download build artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: build-artifacts
-                  path: .next
-            - name: Install dependencies
-              run: yarn install --frozen-lockfile
-            - name: Run and test app
-              env:
-                  MONGODB_URI: mongodb://localhost:27017/crmdb
-                  PERSISTENCE: true
-              run: |
-                  yarn start &
-                  max_attempts=30
-                  attempt=1
-                  until curl -s http://localhost:3000/api/hello || [ $attempt -eq $max_attempts ]
-                  do
-                    echo "Attempt $attempt: Waiting for application to be ready..."
-                    sleep 2
-                    attempt=$((attempt + 1))
-                  done
-                  if [ $attempt -eq $max_attempts ]; then
-                    echo "Application failed to start within timeout"
-                    exit 1
-                  fi
-                  # Run the actual tests
-                  curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
-                  pkill node || (echo "Failed to stop Node process." && exit 1)
+  test:
+    needs: setup-and-build
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:5.0
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: .next
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Run and test app
+        env:
+          MONGODB_URI: mongodb://localhost:27017/crmdb
+          PERSISTENCE: true
+        run: |
+          yarn start &
+          max_attempts=30
+          attempt=1
+          until curl -s http://localhost:3000/api/hello || [ $attempt -eq $max_attempts ]
+          do
+            echo "Attempt $attempt: Waiting for application to be ready..."
+            sleep 2
+            attempt=$((attempt + 1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Application failed to start within timeout"
+            exit 1
+          fi
+          # Run the actual tests
+          curl http://localhost:3000 --fail --connect-timeout 10 --max-time 30
+          pkill node || (echo "Failed to stop Node process." && exit 1)
 
-    docker-build:
-        needs: setup-and-build
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - name: Download build artifact
-              uses: actions/download-artifact@v4
-              with:
-                  name: build-artifacts
-                  path: .next
-            - name: Build and test Docker image
-              run: |
-                  docker build -t crm-app:${GITHUB_SHA} .
-                  docker compose up -d
-                  # Give it more time for health checks to pass
-                  sleep 20
-                  curl http://localhost:80 --fail --connect-timeout 10 --max-time 30
-                  docker compose down
-            - name: Save and upload Docker image
-              run: |
-                  docker save crm-app:${GITHUB_SHA} > image.tar
-            - name: Upload Docker image
-              uses: actions/upload-artifact@v4
-              with:
-                  name: docker-image
-                  path: image.tar
+  docker-build:
+    needs: setup-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: .next
+      - name: Build and test Docker image
+        run: |
+          docker build -t crm-app:${GITHUB_SHA} .
+          docker compose up -d
+          # Give it more time for health checks to pass
+          sleep 20
+          curl http://localhost:80 --fail --connect-timeout 10 --max-time 30
+          docker compose down
+      - name: Save and upload Docker image
+        run: |
+          docker save crm-app:${GITHUB_SHA} > image.tar
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: image.tar
 
-    docker-push:
-        needs: docker-build
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - name: Configure AWS credentials
-              uses: aws-actions/configure-aws-credentials@v3
-              with:
-                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  aws-region: ${{ secrets.AWS_REGION }}
-            - name: Download and load Docker image
-              uses: actions/download-artifact@v4
-              with:
-                  name: docker-image
-            - run: docker load < image.tar
-            - name: Push to ECR
-              run: |
-                  aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
-                  # Tag and push SHA image
-                  docker tag "crm-app:${GITHUB_SHA}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}"
-                  docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}
+  docker-push:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Download and load Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+      - run: docker load < image.tar
+      - name: Push to ECR
+        run: |
+          aws ecr get-login-password --region ${{secrets.AWS_REGION}} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com
+          # Tag and push SHA image
+          docker tag "crm-app:${GITHUB_SHA}" "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}"
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{secrets.AWS_REGION}}.amazonaws.com/crm-app:${GITHUB_SHA}
 
-    update-helm-repo:
-        needs: docker-push
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout helm repo
-              uses: actions/checkout@v4
-              with:
-                  repository: 'Asher-Avraham/crm-app-helm'
-                  token: '${{ secrets.HELM_REPO_TOKEN }}'
-                  path: 'helm-repo'
-            - name: Update image tag
-              run: |
-                  cd helm-repo
-                  sed -i "s/^  tag: .*/  tag: ${GITHUB_SHA}/" envs/dev-values.yaml
-            - name: Commit and push
-              run: |
-                  cd helm-repo
-                  git config user.name "github-actions"
-                  git config user.email "github-actions@users.noreply.github.com"
-                  git add envs/dev-values.yaml
-                  git commit -m "Update dev image tag to ${GITHUB_SHA}" || exit 0
-                  git push
+  update-helm-repo:
+    needs: docker-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout helm repo
+        uses: actions/checkout@v4
+        with:
+          repository: "Asher-Avraham/crm-app-helm"
+          token: "${{ github.token }}"
+          path: "helm-repo"
+      - name: Update image tag
+        run: |
+          cd helm-repo
+          sed -i "s/^  tag: .*/  tag: ${GITHUB_SHA}/" envs/dev-values.yaml
+      - name: Commit and push
+        run: |
+          cd helm-repo
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add envs/dev-values.yaml
+          git commit -m "Update dev image tag to ${GITHUB_SHA}" || exit 0
+          git push
 
-    cleanup:
-        needs: [docker-push, update-helm-repo]
-        if: always() # runs even if other jobs fail
-        runs-on: ubuntu-latest
-        steps:
-            - name: Delete workflow artifacts
-              uses: geekyeggo/delete-artifact@v5
-              with:
-                  name: |
-                      build-artifacts
-                      docker-image
+  cleanup:
+    needs: [ docker-push, update-helm-repo ]
+    if: always() # runs even if other jobs fail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete workflow artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: |
+            build-artifacts
+            docker-image
